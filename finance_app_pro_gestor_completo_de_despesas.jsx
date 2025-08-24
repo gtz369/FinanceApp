@@ -1,32 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 
-// FinanceApp Pro — Gestor Completo de Despesas (v0.1)
-// - Mantém a base do MVP (MEI/Simples, KPIs, plano de distribuição)
-// - Adiciona listas dinâmicas de Despesas Operacionais e Custos Diretos
-// - Tabela com percentuais, sumarização por tipo (Fixa/Variável) e por grupo (Operacional x Direto)
-// - Persistência simples em localStorage
-// - Exportação CSV das despesas
-// Aviso: ferramenta educacional. Consulte seu contador para enquadramento e obrigações.
-
-export default function FinanceAppPro() {
-  type Regime = "MEI" | "Simples";
-  type TipoDespesa = "Fixa" | "Variável";
-
-  type Despesa = {
-    id: string;
-    nome: string;
-    valor: number; // R$/mês
-    tipo: TipoDespesa; // Fixa ou Variável
-    categoria?: string; // opcional (ex.: Software, Aluguel, Energia)
-  };
-
-  type CustoDireto = {
-    id: string;
-    nome: string;
-    valor: number; // R$/mês (média do período)
-  };
-
-  const [regime, setRegime] = useState<Regime>("MEI");
+export default function App() {
+  // ---- Estado principal ----
+  const [regime, setRegime] = useState("MEI"); // "MEI" | "Simples"
   const [faturamentoMensal, setFaturamentoMensal] = useState(15000);
   const [proLabore, setProLabore] = useState(2500);
 
@@ -35,21 +11,19 @@ export default function FinanceAppPro() {
   const [meiDasFixo, setMeiDasFixo] = useState(75); // MEI (R$)
   const [outrosImpostos, setOutrosImpostos] = useState(0);
 
-  const [despesas, setDespesas] = useState<Despesa[]>([{
-    id: cryptoRandom(), nome: "Adobe CC", valor: 224.9, tipo: "Fixa", categoria: "Software"
-  }, {
-    id: cryptoRandom(), nome: "Internet", valor: 120, tipo: "Fixa", categoria: "Infra"
-  }, {
-    id: cryptoRandom(), nome: "Aluguel sala", valor: 1200, tipo: "Fixa", categoria: "Aluguel"
-  }]);
+  // Listas dinâmicas
+  const [despesas, setDespesas] = useState([
+    { id: cryptoRandom(), nome: "Adobe CC", valor: 224.9, tipo: "Fixa", categoria: "Software" },
+    { id: cryptoRandom(), nome: "Internet", valor: 120, tipo: "Fixa", categoria: "Infra" },
+    { id: cryptoRandom(), nome: "Aluguel sala", valor: 1200, tipo: "Fixa", categoria: "Aluguel" },
+  ]);
 
-  const [custosDiretos, setCustosDiretos] = useState<CustoDireto[]>([{
-    id: cryptoRandom(), nome: "Banco de música (job)", valor: 60
-  }, {
-    id: cryptoRandom(), nome: "Freela edição (job)", valor: 800
-  }]);
+  const [custosDiretos, setCustosDiretos] = useState([
+    { id: cryptoRandom(), nome: "Banco de música (job)", valor: 60 },
+    { id: cryptoRandom(), nome: "Freela edição (job)", valor: 800 },
+  ]);
 
-  // Persistência simples
+  // ---- Persistência simples (localStorage) ----
   useEffect(() => {
     const saved = localStorage.getItem("financeapp_pro_state");
     if (saved) {
@@ -63,31 +37,40 @@ export default function FinanceAppPro() {
         setOutrosImpostos(obj.outrosImpostos ?? 0);
         setDespesas(obj.despesas ?? []);
         setCustosDiretos(obj.custosDiretos ?? []);
-      } catch (e) { /* ignore */ }
+      } catch (e) {}
     }
   }, []);
 
   useEffect(() => {
     const snapshot = {
-      regime, faturamentoMensal, proLabore,
-      aliquotaEfetiva, meiDasFixo, outrosImpostos,
-      despesas, custosDiretos,
+      regime,
+      faturamentoMensal,
+      proLabore,
+      aliquotaEfetiva,
+      meiDasFixo,
+      outrosImpostos,
+      despesas,
+      custosDiretos,
     };
     localStorage.setItem("financeapp_pro_state", JSON.stringify(snapshot));
   }, [regime, faturamentoMensal, proLabore, aliquotaEfetiva, meiDasFixo, outrosImpostos, despesas, custosDiretos]);
 
-  const custosDiretosTotal = useMemo(() => sum(custosDiretos.map(c => c.valor)), [custosDiretos]);
-  const despesasFixas = useMemo(() => sum(despesas.filter(d => d.tipo === "Fixa").map(d => d.valor)), [despesas]);
-  const despesasVariaveis = useMemo(() => sum(despesas.filter(d => d.tipo === "Variável").map(d => d.valor)), [despesas]);
+  // ---- Cálculos ----
+  const custosDiretosTotal = useMemo(() => sum(custosDiretos.map((c) => c.valor)), [custosDiretos]);
+  const despesasFixas = useMemo(() => sum(despesas.filter((d) => d.tipo === "Fixa").map((d) => d.valor)), [despesas]);
+  const despesasVariaveis = useMemo(
+    () => sum(despesas.filter((d) => d.tipo === "Variável").map((d) => d.valor)),
+    [despesas]
+  );
   const despesasOperacionaisTotal = despesasFixas + despesasVariaveis;
 
   const impostosCalculados = useMemo(() => {
     if (regime === "MEI") return meiDasFixo + outrosImpostos;
-    return (faturamentoMensal * (aliquotaEfetiva / 100)) + outrosImpostos;
+    return faturamentoMensal * (aliquotaEfetiva / 100) + outrosImpostos;
   }, [regime, faturamentoMensal, aliquotaEfetiva, meiDasFixo, outrosImpostos]);
 
   const receita = faturamentoMensal;
-  const lucroBruto = receita - custosDiretosTotal; // após custos diretos
+  const lucroBruto = receita - custosDiretosTotal;
   const resultadoOperacional = lucroBruto - despesasOperacionaisTotal - proLabore - impostosCalculados;
 
   const margemBruta = receita > 0 ? (lucroBruto / receita) * 100 : 0;
@@ -97,7 +80,7 @@ export default function FinanceAppPro() {
   const pctDespesasVariaveisSobreReceita = receita > 0 ? (despesasVariaveis / receita) * 100 : 0;
   const pctCustosDiretosSobreReceita = receita > 0 ? (custosDiretosTotal / receita) * 100 : 0;
 
-  // Distribuição de lucros (configurável)
+  // Distribuição de lucros
   const [pctReserva, setPctReserva] = useState(10);
   const [pctImpostosFuturos, setPctImpostosFuturos] = useState(5);
   const [pctReinvest, setPctReinvest] = useState(10);
@@ -117,19 +100,22 @@ export default function FinanceAppPro() {
     return margemContrib > 0 ? despesasFixasTot / margemContrib : 0;
   }, [receita, custosDiretosTotal, despesasOperacionaisTotal, proLabore, impostosCalculados]);
 
+  // ---- UI ----
   return (
     <div className="min-h-screen w-full bg-slate-50 text-slate-900 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         <header>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">FinanceApp Pro — Gestor Completo de Despesas</h1>
-          <p className="text-slate-600 text-sm md:text-base mt-2">Cadastre suas despesas operacionais e custos diretos por item, visualize percentuais, simule impostos (MEI/Simples) e veja KPIs de saúde do negócio.</p>
+          <p className="text-slate-600 text-sm md:text-base mt-2">
+            Cadastre suas despesas operacionais e custos diretos por item, visualize percentuais, simule impostos (MEI/Simples) e veja KPIs de saúde do negócio.
+          </p>
         </header>
 
         {/* Configurações & Receita */}
         <section className="grid md:grid-cols-3 gap-4">
           <Card>
             <Label>Regime</Label>
-            <select className="w-full rounded-xl border-slate-300" value={regime} onChange={(e) => setRegime(e.target.value as Regime)}>
+            <select className="w-full rounded-xl border-slate-300" value={regime} onChange={(e) => setRegime(e.target.value)}>
               <option value="MEI">MEI</option>
               <option value="Simples">Simples Nacional</option>
             </select>
@@ -138,28 +124,59 @@ export default function FinanceAppPro() {
 
           <Card>
             <Label>Faturamento mensal (R$)</Label>
-            <input type="number" className="w-full rounded-xl border-slate-300" value={faturamentoMensal} onChange={(e)=>setFaturamentoMensal(Number(e.target.value))} min={0} />
-            <Label className="mt-3">Pró‑labore (R$)</Label>
-            <input type="number" className="w-full rounded-xl border-slate-300" value={proLabore} onChange={(e)=>setProLabore(Number(e.target.value))} min={0} />
+            <input
+              type="number"
+              className="w-full rounded-xl border-slate-300"
+              value={faturamentoMensal}
+              onChange={(e) => setFaturamentoMensal(Number(e.target.value))}
+              min={0}
+            />
+            <Label className="mt-3">Pró-labore (R$)</Label>
+            <input
+              type="number"
+              className="w-full rounded-xl border-slate-300"
+              value={proLabore}
+              onChange={(e) => setProLabore(Number(e.target.value))}
+              min={0}
+            />
           </Card>
 
           <Card>
             {regime === "Simples" ? (
               <div>
                 <Label>Alíquota efetiva Simples (%)</Label>
-                <input type="number" className="w-full rounded-xl border-slate-300" value={aliquotaEfetiva} onChange={(e)=>setAliquotaEfetiva(Number(e.target.value))} min={0} max={35} />
+                <input
+                  type="number"
+                  className="w-full rounded-xl border-slate-300"
+                  value={aliquotaEfetiva}
+                  onChange={(e) => setAliquotaEfetiva(Number(e.target.value))}
+                  min={0}
+                  max={35}
+                />
                 <p className="text-xs text-slate-500 mt-2">Use sua alíquota real (faixa + fator R). Se não souber, comece com 6–15%.</p>
               </div>
             ) : (
               <div>
                 <Label>DAS MEI fixo (R$)</Label>
-                <input type="number" className="w-full rounded-xl border-slate-300" value={meiDasFixo} onChange={(e)=>setMeiDasFixo(Number(e.target.value))} min={0} />
+                <input
+                  type="number"
+                  className="w-full rounded-xl border-slate-300"
+                  value={meiDasFixo}
+                  onChange={(e) => setMeiDasFixo(Number(e.target.value))}
+                  min={0}
+                />
                 <p className="text-xs text-slate-500 mt-2">Valor mensal aproximado do boleto DAS.</p>
               </div>
             )}
 
             <Label className="mt-3">Outros impostos/Taxas (R$)</Label>
-            <input type="number" className="w-full rounded-xl border-slate-300" value={outrosImpostos} onChange={(e)=>setOutrosImpostos(Number(e.target.value))} min={0} />
+            <input
+              type="number"
+              className="w-full rounded-xl border-slate-300"
+              value={outrosImpostos}
+              onChange={(e) => setOutrosImpostos(Number(e.target.value))}
+              min={0}
+            />
 
             <div className="mt-3 p-3 bg-slate-100 rounded-xl flex items-center justify-between">
               <div>
@@ -174,23 +191,27 @@ export default function FinanceAppPro() {
         {/* KPIs */}
         <section className="grid md:grid-cols-5 gap-4">
           <KPI label="Receita" value={`R$ ${format(receita)}`} hint="Faturamento bruto mensal" />
-          <KPI label="Custos diretos" value={`R$ ${format(custosDiretosTotal)}`} hint={`${pctCustosDiretosSobreReceita.toFixed(1)}% da receita`} />
-          <KPI label="Despesas operacionais" value={`R$ ${format(despesasOperacionaisTotal)}`} hint={`${(pctDespesasFixasSobreReceita + pctDespesasVariaveisSobreReceita).toFixed(1)}% da receita`} />
+          <KPI label="Custos diretos" value={`R$ ${format(custosDiretosTotal)}`} hint={`${pct(receita, custosDiretosTotal)}% da receita`} />
+          <KPI
+            label="Despesas operacionais"
+            value={`R$ ${format(despesasOperacionaisTotal)}`}
+            hint={`${(pctDespesasFixasSobreReceita + pctDespesasVariaveisSobreReceita).toFixed(1)}% da receita`}
+          />
           <KPI label="Margem bruta" value={`${margemBruta.toFixed(1)}%`} hint="(Receita − Custos diretos)/Receita" />
-          <KPI label="Margem operacional" value={`${margemOperacional.toFixed(1)}%`} hint="Depois de despesas, pró‑labore e impostos" />
+          <KPI label="Margem operacional" value={`${margemOperacional.toFixed(1)}%`} hint="Depois de despesas, pró-labore e impostos" />
         </section>
 
-        {/* Tabelas de itens */}
+        {/* Tabelas */}
         <section className="grid md:grid-cols-2 gap-4">
           <Card>
             <div className="flex items-center justify-between mb-2">
               <h2 className="text-lg font-semibold">Despesas Operacionais</h2>
-              <AddExpense onAdd={(d)=>setDespesas(prev=>[...prev, d])} />
+              <AddExpense onAdd={(d) => setDespesas((prev) => [...prev, d])} />
             </div>
             <TableHeader cols={["Nome", "Tipo", "Categoria", "Valor", "% Receita", ""]} />
             {despesas.length === 0 && <Empty>Sem despesas cadastradas.</Empty>}
             <div className="divide-y">
-              {despesas.map(d => (
+              {despesas.map((d) => (
                 <Row key={d.id}>
                   <Cell>{d.nome}</Cell>
                   <Cell>{d.tipo}</Cell>
@@ -198,8 +219,15 @@ export default function FinanceAppPro() {
                   <Cell className="text-right">R$ {format(d.valor)}</Cell>
                   <Cell className="text-right">{pct(receita, d.valor)}%</Cell>
                   <Cell className="text-right">
-                    <button className="text-xs text-slate-600 underline mr-2" onClick={()=>editDespesa(d, setDespesas)}>editar</button>
-                    <button className="text-xs text-rose-600 underline" onClick={()=>setDespesas(prev=>prev.filter(x=>x.id!==d.id))}>remover</button>
+                    <button className="text-xs text-slate-600 underline mr-2" onClick={() => editDespesa(d, setDespesas)}>
+                      editar
+                    </button>
+                    <button
+                      className="text-xs text-rose-600 underline"
+                      onClick={() => setDespesas((prev) => prev.filter((x) => x.id !== d.id))}
+                    >
+                      remover
+                    </button>
                   </Cell>
                 </Row>
               ))}
@@ -207,10 +235,16 @@ export default function FinanceAppPro() {
             <div className="mt-3 grid grid-cols-3 gap-2">
               <BadgeStat label="Fixas" value={`R$ ${format(despesasFixas)}`} hint={`${pct(receita, despesasFixas)}% da receita`} />
               <BadgeStat label="Variáveis" value={`R$ ${format(despesasVariaveis)}`} hint={`${pct(receita, despesasVariaveis)}% da receita`} />
-              <BadgeStat label="Total" value={`R$ ${format(despesasOperacionaisTotal)}`} hint={`${pct(receita, despesasOperacionaisTotal)}% da receita`} />
+              <BadgeStat
+                label="Total"
+                value={`R$ ${format(despesasOperacionaisTotal)}`}
+                hint={`${pct(receita, despesasOperacionaisTotal)}% da receita`}
+              />
             </div>
             <div className="mt-4 flex items-center gap-2">
-              <button className="px-3 py-2 rounded-xl bg-slate-900 text-white text-sm" onClick={()=>exportarDespesasCSV(despesas)}>Exportar CSV</button>
+              <button className="px-3 py-2 rounded-xl bg-slate-900 text-white text-sm" onClick={() => exportarDespesasCSV(despesas)}>
+                Exportar CSV
+              </button>
               <span className="text-xs text-slate-500">Baixa um .csv com suas despesas (nome;tipo;categoria;valor)</span>
             </div>
           </Card>
@@ -218,19 +252,26 @@ export default function FinanceAppPro() {
           <Card>
             <div className="flex items-center justify-between mb-2">
               <h2 className="text-lg font-semibold">Custos Diretos (média mensal)</h2>
-              <AddCusto onAdd={(c)=>setCustosDiretos(prev=>[...prev, c])} />
+              <AddCusto onAdd={(c) => setCustosDiretos((prev) => [...prev, c])} />
             </div>
             <TableHeader cols={["Nome", "Valor", "% Receita", ""]} />
             {custosDiretos.length === 0 && <Empty>Sem custos cadastrados.</Empty>}
             <div className="divide-y">
-              {custosDiretos.map(c => (
+              {custosDiretos.map((c) => (
                 <Row key={c.id}>
                   <Cell>{c.nome}</Cell>
                   <Cell className="text-right">R$ {format(c.valor)}</Cell>
                   <Cell className="text-right">{pct(receita, c.valor)}%</Cell>
                   <Cell className="text-right">
-                    <button className="text-xs text-slate-600 underline mr-2" onClick={()=>editCusto(c, setCustosDiretos)}>editar</button>
-                    <button className="text-xs text-rose-600 underline" onClick={()=>setCustosDiretos(prev=>prev.filter(x=>x.id!==c.id))}>remover</button>
+                    <button className="text-xs text-slate-600 underline mr-2" onClick={() => editCusto(c, setCustosDiretos)}>
+                      editar
+                    </button>
+                    <button
+                      className="text-xs text-rose-600 underline"
+                      onClick={() => setCustosDiretos((prev) => prev.filter((x) => x.id !== c.id))}
+                    >
+                      remover
+                    </button>
                   </Cell>
                 </Row>
               ))}
@@ -250,12 +291,14 @@ export default function FinanceAppPro() {
               <Line label="Custos diretos" value={`R$ ${format(custosDiretosTotal)}`} />
               <Line label="Lucro bruto" value={`R$ ${format(lucroBruto)}`} />
               <Line label="Despesas operacionais" value={`R$ ${format(despesasOperacionaisTotal)}`} />
-              <Line label="Pró‑labore" value={`R$ ${format(proLabore)}`} />
+              <Line label="Pró-labore" value={`R$ ${format(proLabore)}`} />
               <Line label="Impostos" value={`R$ ${format(impostosCalculados)}`} />
               <div className="col-span-2 border-t pt-2 mt-1" />
               <Line strong label="Resultado operacional" value={`R$ ${format(resultadoOperacional)}`} />
             </div>
-            <div className="mt-3 text-xs text-slate-500">Ponto de equilíbrio estimado: <b>R$ {format(Math.round(pontoDeEquilibrioReceita))}</b> de receita/mês.</div>
+            <div className="mt-3 text-xs text-slate-500">
+              Ponto de equilíbrio estimado: <b>R$ {format(Math.round(pontoDeEquilibrioReceita))}</b> de receita/mês.
+            </div>
           </Card>
 
           <Card>
@@ -275,9 +318,13 @@ export default function FinanceAppPro() {
               <Money label="Reinvest" value={vReinvest} />
               <Money label="Distribuir" value={vDistrib} />
             </div>
-            <div className="mt-2 text-xs text-slate-500">Não alocado: <b>R$ {format(vNaoAlocado)}</b></div>
+            <div className="mt-2 text-xs text-slate-500">
+              Não alocado: <b>R$ {format(vNaoAlocado)}</b>
+            </div>
             {lucroPositivo <= 0 && (
-              <div className="mt-3 p-3 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 text-sm">Sem lucro positivo no cenário atual. Reveja preços, custos e despesas.</div>
+              <div className="mt-3 p-3 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 text-sm">
+                Sem lucro positivo no cenário atual. Reveja preços, custos e despesas.
+              </div>
             )}
           </Card>
         </section>
@@ -290,14 +337,14 @@ export default function FinanceAppPro() {
   );
 }
 
-// Components
-function Card({ children }: { children: React.ReactNode }) {
+/* -------------------------- Componentes básicos -------------------------- */
+function Card({ children }) {
   return <div className="bg-white rounded-2xl shadow p-4">{children}</div>;
 }
-function Label({ children, className="" }: { children: React.ReactNode; className?: string }) {
+function Label({ children, className = "" }) {
   return <label className={`block text-xs uppercase tracking-wider text-slate-500 mb-1 ${className}`}>{children}</label>;
 }
-function KPI({ label, value, hint }: { label: string; value: string; hint?: string }) {
+function KPI({ label, value, hint }) {
   return (
     <div className="bg-white rounded-2xl shadow p-4">
       <div className="text-xs uppercase tracking-wider text-slate-500">{label}</div>
@@ -306,25 +353,25 @@ function KPI({ label, value, hint }: { label: string; value: string; hint?: stri
     </div>
   );
 }
-function TableHeader({ cols }: { cols: string[] }) {
+function TableHeader({ cols }) {
   return (
     <div className="grid grid-cols-12 text-xs text-slate-500 uppercase tracking-wider px-2 py-1">
       {cols.map((c, i) => (
-        <div key={i} className={colClass(i, cols.length)}>{c}</div>
+        <div key={i} className={colClass(i)}>{c}</div>
       ))}
     </div>
   );
 }
-function Row({ children }: { children: React.ReactNode }) {
+function Row({ children }) {
   return <div className="grid grid-cols-12 items-center px-2 py-2">{children}</div>;
 }
-function Cell({ children, className="" }: { children: React.ReactNode; className?: string }) {
+function Cell({ children, className = "" }) {
   return <div className={`col-span-2 ${className}`}>{children}</div>;
 }
-function Empty({ children }: { children: React.ReactNode }) {
+function Empty({ children }) {
   return <div className="text-sm text-slate-500 p-3">{children}</div>;
 }
-function BadgeStat({ label, value, hint }: { label: string; value: string; hint?: string }) {
+function BadgeStat({ label, value, hint }) {
   return (
     <div className="rounded-xl border border-slate-200 p-3 bg-slate-50">
       <div className="text-xs uppercase tracking-wider text-slate-500">{label}</div>
@@ -333,7 +380,7 @@ function BadgeStat({ label, value, hint }: { label: string; value: string; hint?
     </div>
   );
 }
-function Line({ label, value, strong=false }: { label: string; value: string; strong?: boolean }) {
+function Line({ label, value, strong = false }) {
   return (
     <div className={`flex items-center justify-between ${strong ? "font-semibold" : ""}`}>
       <span className="text-slate-600">{label}</span>
@@ -341,16 +388,16 @@ function Line({ label, value, strong=false }: { label: string; value: string; st
     </div>
   );
 }
-function Percent({ label, value, onChange }: { label: string; value: number; onChange: (n:number)=>void }) {
+function Percent({ label, value, onChange }) {
   return (
     <div>
       <Label>{label}</Label>
-      <input type="number" className="w-full rounded-xl border-slate-300" value={value} onChange={(e)=>onChange(Number(e.target.value))} min={0} max={100} />
+      <input type="number" className="w-full rounded-xl border-slate-300" value={value} onChange={(e) => onChange(Number(e.target.value))} min={0} max={100} />
       <div className="text-xs text-slate-500 mt-1">%</div>
     </div>
   );
 }
-function Money({ label, value }: { label: string; value: number }) {
+function Money({ label, value }) {
   return (
     <div className="rounded-xl border border-slate-200 p-3 bg-slate-50">
       <div className="text-xs uppercase tracking-wider text-slate-500">{label}</div>
@@ -359,133 +406,146 @@ function Money({ label, value }: { label: string; value: number }) {
   );
 }
 
-// Add/Edit Modals (inline simples)
-function AddExpense({ onAdd }: { onAdd: (d: any)=>void }) {
+/* ----------------------- Add/Edit inlines (simples) ---------------------- */
+function AddExpense({ onAdd }) {
   const [open, setOpen] = useState(false);
   const [nome, setNome] = useState("");
-  const [valor, setValor] = useState<number>(0);
-  const [tipo, setTipo] = useState<"Fixa"|"Variável">("Fixa");
+  const [valor, setValor] = useState(0);
+  const [tipo, setTipo] = useState("Fixa"); // "Fixa" | "Variável"
   const [categoria, setCategoria] = useState("");
 
   function submit() {
     if (!nome || valor <= 0) return;
     onAdd({ id: cryptoRandom(), nome, valor, tipo, categoria: categoria || undefined });
-    setOpen(false); setNome(""); setValor(0); setTipo("Fixa"); setCategoria("");
+    setOpen(false);
+    setNome("");
+    setValor(0);
+    setTipo("Fixa");
+    setCategoria("");
   }
 
-  if (!open) return <button className="px-3 py-2 rounded-xl bg-slate-900 text-white text-sm" onClick={()=>setOpen(true)}>Adicionar</button>;
+  if (!open) return <button className="px-3 py-2 rounded-xl bg-slate-900 text-white text-sm" onClick={() => setOpen(true)}>Adicionar</button>;
   return (
     <div className="rounded-xl border border-slate-200 p-3 bg-slate-50">
       <div className="grid md:grid-cols-4 gap-2 items-end">
         <div>
           <Label>Nome</Label>
-          <input className="w-full rounded-xl border-slate-300" value={nome} onChange={(e)=>setNome(e.target.value)} placeholder="Ex.: Adobe, Aluguel" />
+          <input className="w-full rounded-xl border-slate-300" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Adobe, Aluguel" />
         </div>
         <div>
           <Label>Valor (R$)</Label>
-          <input type="number" className="w-full rounded-xl border-slate-300" value={valor} onChange={(e)=>setValor(Number(e.target.value))} min={0} />
+          <input type="number" className="w-full rounded-xl border-slate-300" value={valor} onChange={(e) => setValor(Number(e.target.value))} min={0} />
         </div>
         <div>
           <Label>Tipo</Label>
-          <select className="w-full rounded-xl border-slate-300" value={tipo} onChange={(e)=>setTipo(e.target.value as any)}>
+          <select className="w-full rounded-xl border-slate-300" value={tipo} onChange={(e) => setTipo(e.target.value)}>
             <option value="Fixa">Fixa</option>
             <option value="Variável">Variável</option>
           </select>
         </div>
         <div>
           <Label>Categoria</Label>
-          <input className="w-full rounded-xl border-slate-300" value={categoria} onChange={(e)=>setCategoria(e.target.value)} placeholder="Opcional" />
+          <input className="w-full rounded-xl border-slate-300" value={categoria} onChange={(e) => setCategoria(e.target.value)} placeholder="Opcional" />
         </div>
       </div>
       <div className="mt-2 flex items-center gap-2">
         <button className="px-3 py-2 rounded-xl bg-emerald-600 text-white text-sm" onClick={submit}>Salvar</button>
-        <button className="px-3 py-2 rounded-xl bg-slate-200 text-slate-800 text-sm" onClick={()=>setOpen(false)}>Cancelar</button>
+        <button className="px-3 py-2 rounded-xl bg-slate-200 text-slate-800 text-sm" onClick={() => setOpen(false)}>Cancelar</button>
       </div>
     </div>
   );
 }
 
-function AddCusto({ onAdd }: { onAdd: (c: any)=>void }) {
+function AddCusto({ onAdd }) {
   const [open, setOpen] = useState(false);
   const [nome, setNome] = useState("");
-  const [valor, setValor] = useState<number>(0);
+  const [valor, setValor] = useState(0);
+
   function submit() {
     if (!nome || valor <= 0) return;
     onAdd({ id: cryptoRandom(), nome, valor });
-    setOpen(false); setNome(""); setValor(0);
+    setOpen(false);
+    setNome("");
+    setValor(0);
   }
-  if (!open) return <button className="px-3 py-2 rounded-xl bg-slate-900 text-white text-sm" onClick={()=>setOpen(true)}>Adicionar</button>;
+
+  if (!open) return <button className="px-3 py-2 rounded-xl bg-slate-900 text-white text-sm" onClick={() => setOpen(true)}>Adicionar</button>;
   return (
     <div className="rounded-xl border border-slate-200 p-3 bg-slate-50">
       <div className="grid md:grid-cols-3 gap-2 items-end">
         <div>
           <Label>Nome</Label>
-          <input className="w-full rounded-xl border-slate-300" value={nome} onChange={(e)=>setNome(e.target.value)} placeholder="Ex.: Freela, Música" />
+          <input className="w-full rounded-xl border-slate-300" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Freela, Música" />
         </div>
         <div>
           <Label>Valor (R$)</Label>
-          <input type="number" className="w-full rounded-xl border-slate-300" value={valor} onChange={(e)=>setValor(Number(e.target.value))} min={0} />
+          <input type="number" className="w-full rounded-xl border-slate-300" value={valor} onChange={(e) => setValor(Number(e.target.value))} min={0} />
         </div>
       </div>
       <div className="mt-2 flex items-center gap-2">
         <button className="px-3 py-2 rounded-xl bg-emerald-600 text-white text-sm" onClick={submit}>Salvar</button>
-        <button className="px-3 py-2 rounded-xl bg-slate-200 text-slate-800 text-sm" onClick={()=>setOpen(false)}>Cancelar</button>
+        <button className="px-3 py-2 rounded-xl bg-slate-200 text-slate-800 text-sm" onClick={() => setOpen(false)}>Cancelar</button>
       </div>
     </div>
   );
 }
 
-// helpers UI
-function colClass(i: number, len: number) {
-  // 6 cols -> (2,2,2,2,2,2) ; 4 cols -> (6,2,2,2) custom mapping below for our headers
-  const maps: Record<number, string> = {
-    6: "grid-cols-12",
-    4: "grid-cols-12",
-  };
-  // Using fixed 12 columns; width per col decided by index
+/* ------------------------------ Helpers ------------------------------ */
+function colClass(i) {
   return [
     "col-span-4", // Nome
     "col-span-2", // Tipo / Valor
-    "col-span-2", // Categoria / %
-    "col-span-2 text-right", // Valor / ações
+    "col-span-2", // Categoria / % receita
+    "col-span-2 text-right", // Valor
     "col-span-1 text-right", // % Receita
-    "col-span-1 text-right", // ações
+    "col-span-1 text-right", // Ações
   ][i] || "col-span-2";
 }
-
-// utils
-function sum(nums: number[]) { return nums.reduce((a,b)=>a+b,0); }
-function format(n: number) { return n.toLocaleString(); }
-function pct(base: number, v: number) { return base > 0 ? (v/base*100).toFixed(1) : "0.0"; }
-function cryptoRandom() { return Math.random().toString(36).slice(2) + Date.now().toString(36); }
-
-function editDespesa(d: any, setDespesas: React.Dispatch<React.SetStateAction<any[]>>) {
+function sum(nums) {
+  return nums.reduce((a, b) => a + b, 0);
+}
+function format(n) {
+  return n.toLocaleString();
+}
+function pct(base, v) {
+  return base > 0 ? (v / base * 100).toFixed(1) : "0.0";
+}
+function cryptoRandom() {
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+function editDespesa(d, setDespesas) {
   const nome = prompt("Nome da despesa:", d.nome);
   if (nome === null) return;
   const valorStr = prompt("Valor (R$):", String(d.valor));
   if (valorStr === null) return;
   const valor = Number(valorStr);
-  const tipo = prompt("Tipo (Fixa/Variável):", d.tipo) as "Fixa"|"Variável";
+  const tipo = prompt("Tipo (Fixa/Variável):", d.tipo);
   const categoria = prompt("Categoria (opcional):", d.categoria ?? "");
-  if (!nome || !(valor>0) || (tipo !== "Fixa" && tipo !== "Variável")) return;
-  setDespesas(prev => prev.map(x => x.id === d.id ? { ...x, nome, valor, tipo, categoria: categoria || undefined } : x));
+  if (!nome || !(valor > 0) || (tipo !== "Fixa" && tipo !== "Variável")) return;
+  setDespesas((prev) =>
+    prev.map((x) => (x.id === d.id ? { ...x, nome, valor, tipo, categoria: categoria || undefined } : x))
+  );
 }
-function editCusto(c: any, setCustos: React.Dispatch<React.SetStateAction<any[]>>) {
+function editCusto(c, setCustos) {
   const nome = prompt("Nome do custo direto:", c.nome);
   if (nome === null) return;
   const valorStr = prompt("Valor (R$):", String(c.valor));
   if (valorStr === null) return;
   const valor = Number(valorStr);
-  if (!nome || !(valor>0)) return;
-  setCustos(prev => prev.map(x => x.id === c.id ? { ...x, nome, valor } : x));
+  if (!nome || !(valor > 0)) return;
+  setCustos((prev) => prev.map((x) => (x.id === c.id ? { ...x, nome, valor } : x)));
 }
-
-function exportarDespesasCSV(despesas: any[]) {
-  const header = ["nome","tipo","categoria","valor"];
-  const rows = despesas.map(d => [d.nome, d.tipo, d.categoria ?? "", String(d.valor).replace(".", ",")]);
-  const csv = [header, ...rows].map(r => r.map(v => typeof v === 'number' ? String(v).replace('.', ',') : `${v}`).join(';')).join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+function exportarDespesasCSV(despesas) {
+  const header = ["nome", "tipo", "categoria", "valor"];
+  const rows = despesas.map((d) => [d.nome, d.tipo, d.categoria ?? "", String(d.valor).replace(".", ",")]);
+  const csv = [header, ...rows]
+    .map((r) => r.map((v) => (typeof v === "number" ? String(v).replace(".", ",") : `${v}`)).join(";"))
+    .join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = 'despesas.csv'; a.click(); URL.revokeObjectURL(url);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "despesas.csv";
+  a.click();
+  URL.revokeObjectURL(url);
 }
